@@ -5,28 +5,35 @@
 #define MAX_LINE 8192
 #define MAX_HEIGHT 512
 #define MAX_WIDTH 512
-#define BRIGHTEN 25
+#define BRIGHTEN 50
 
 typedef struct
 {
   int lines;
   int cols;
   int highest;
-  int matrix[MAX_WIDTH][MAX_HEIGHT];
+  int **matrix;
 } Pgm;
 
 void getInfo(Pgm *pgm);
-void brighten(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm);
-void zoom(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm);
-void polarize(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm);
-void rotate(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm);
+void build(Pgm *pgm);
+void brighten(int **matrix, Pgm *pgm);
+void zoom(int **matrix, Pgm *pgm);
+void polarize(int **matrix, Pgm *pgm);
+void rotate(int **matrix, Pgm *pgm);
 
 int main(int argc, char **argv) // Por simplicidade usarei o .pgm usado como exemplo.
 {
   Pgm pgm;
-  getInfo(&pgm);
-  brighten(pgm.matrix, &pgm);
-  rotate(pgm.matrix, &pgm);
+  getInfo(&pgm); // Vai pegar as dimensions da matrix e o maior valor.
+
+  pgm.matrix = (int **)malloc(pgm.lines * sizeof(int *));
+  for (int i = 0; i < pgm.lines; i++)
+    pgm.matrix[i] = (int *)malloc(pgm.cols * sizeof(int));
+
+  build(&pgm);                // Construo a matriz
+  brighten(pgm.matrix, &pgm); // Clareia
+  rotate(pgm.matrix, &pgm);   // Roda
   // zoom(pgm.matrix, &pgm);
   //  printMatrix();
   return 0;
@@ -39,14 +46,6 @@ void getInfo(Pgm *pgm)
   bool d = true;
   bool keepReading = true;
   FILE *f = fopen("glassware_noisy.pgm", "r");
-  /*while ((c = fgetc(f)) != EOF)
-  {
-    if (c == ' ')
-      countSpaces++;
-    if (countSpaces >= 512)
-      break;
-    printf("%c", c);
-  }*/
   do
   {
     if (counter == 0)
@@ -91,12 +90,19 @@ void getInfo(Pgm *pgm)
   printf("cols: %d, line: %d, highest: %d", pgm->cols, pgm->lines, pgm->highest);
 
   // pegando os valores da matriz do arquivo e salvando no struct;
-  f = fopen("glassware_noisy.pgm", "r");
-  keepReading = true;
-  line = 0;
+}
+
+void build(Pgm *pgm)
+{
+  char buffer[512];
+  FILE *f = fopen("glassware_noisy.pgm", "r");
+  bool keepReading = true;
+  int line = 0, total = 0, countSpaces = 0, i = 0;
+
   do
   {
     fgets(buffer, MAX_LINE, f);
+    buffer[strcspn(buffer, "\n")] = 0;
     if (feof(f))
     {
       printf("\nCheguei no final do arquivo");
@@ -109,9 +115,9 @@ void getInfo(Pgm *pgm)
       while (values != NULL)
       {
         total++;
-        printf("values: %d, cols: %d, pgm->matrix[%d][%d], total: %d\n", atoi(values), pgm->cols, i, countSpaces, total);
+        // printf("values: %d, cols: %d, pgm->matrix[%d][%d], total: %d\n", atoi(values), pgm->cols, i, countSpaces, total);
         pgm->matrix[i][countSpaces] = atoi(values);
-        if (i == pgm->lines && countSpaces == pgm->cols)
+        if (i == pgm->lines - 1 && countSpaces == pgm->cols - 1)
           break;
         countSpaces++;
         if (countSpaces == pgm->cols)
@@ -132,41 +138,45 @@ void getInfo(Pgm *pgm)
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
   fprintf(f, "%d\n", pgm->highest);
-  for (int i = 0; i < pgm->cols - 1; i++)
+  for (int i = 0; i < pgm->lines; i++)
   {
-    for (int j = 0; j < pgm->lines - 1; j++)
-      fprintf(f, "%d ", pgm->matrix[i][j]);
-
+    for (int j = 0; j < pgm->cols; j++)
+    {
+      // printf("\nmatrix[%d][%d]: %3d", i, j, pgm->matrix[27][90]);
+      fprintf(f, "%d  ", pgm->matrix[i][j]);
+    }
     fprintf(f, "\n");
   }
   fclose(f);
 }
 
-void brighten(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm)
+void brighten(int **matrix, Pgm *pgm)
 {
-  for (int i = 0; i < pgm->lines - 1; i++)
-    for (int j = 0; j < pgm->cols - 1; j++)
+  int bright[pgm->lines][pgm->cols];
+  for (int i = 0; i < pgm->lines; i++)
+    for (int j = 0; j < pgm->cols; j++)
     {
+      // printf("\n Brighten matrix[%d][%d]: %d", i, j, matrix[i][j]);
       if (matrix[i][j] + BRIGHTEN > 255)
       {
-        matrix[i][j] = matrix[i][j] + (255 - matrix[i][j]);
+        bright[i][j] = matrix[i][j] + (255 - matrix[i][j]);
       }
       else
-        matrix[i][j] = matrix[i][j] + BRIGHTEN;
+        bright[i][j] = matrix[i][j] + BRIGHTEN;
     }
   FILE *f = fopen("glassware_noisy_bright.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
-  fprintf(f, "%d\n", pgm->highest);
-  for (int i = 0; i < pgm->lines - 1; i++)
+  fprintf(f, "%d\n", (pgm->highest + BRIGHTEN < 255) ? pgm->highest + BRIGHTEN : 255);
+  for (int i = 0; i < pgm->lines; i++)
   {
-    for (int j = 0; j < pgm->cols - 1; j++)
-      fprintf(f, "%d ", matrix[i][j]);
+    for (int j = 0; j < pgm->cols; j++)
+      fprintf(f, "%d ", bright[i][j]);
     fprintf(f, "\n");
   }
 }
 
-void zoom(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm)
+void zoom(int **matrix, Pgm *pgm)
 {
   int cols = pgm->cols / 2, lines = pgm->lines / 2;
   int c = 0, l = 0;
@@ -190,12 +200,51 @@ void zoom(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm)
   }
 }
 
-void polarize(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm)
+void polarize(int **matrix, Pgm *pgm)
 {
 }
 
-void rotate(int matrix[MAX_WIDTH][MAX_HEIGHT], Pgm *pgm)
+void rotate(int **matrix, Pgm *pgm)
 {
+  printf("\nSalve rodado");
+  int c = pgm->cols, l = pgm->lines;
+  int rotated[l][c];
+  for (int i = 0; i < l; i++)
+    for (int j = 0; j < c; j++)
+    {
+      // printf("\n Rotated matrix[%d][%d]: %d", i, j, matrix[i][j]);
+      rotated[i][j] = matrix[i][j];
+    }
+  // Print the matrix
+  // Tranposing the matrix
+  for (int i = 0; i < pgm->lines; i++)
+  {
+    for (int j = i; j < pgm->cols; j++)
+      swap(&rotated[i][j], &rotated[j][i]);
+  }
+
+  // Reversing each row of the matrix
+  for (int i = 0; i < pgm->lines; i++)
+  {
+    for (int j = 0; j < pgm->cols / 2; j++)
+    {
+      swap(&rotated[i][j], &rotated[i][pgm->cols - j - 1]);
+    }
+  }
+
+  // Print the matrix
+
+  FILE *f = fopen("glassware_noisy_rotate.pgm", "wb");
+  fprintf(f, "P2\n");
+  fprintf(f, "%d %d\n", pgm->lines, pgm->cols);
+  fprintf(f, "%d\n", pgm->highest);
+  // Print the matrix
+  for (int i = 0; i < l; i++)
+  {
+    for (int j = 0; j < c; j++)
+      fprintf(f, "%d ", rotated[i][j]);
+    fprintf(f, "\n");
+  }
   /*for (int i = 0; i < pgm->cols; i++)
   {
     for (int j = pgm->lines - 1; j >= pgm->cols; j--)
