@@ -42,50 +42,46 @@ int main(int argc, char **argv) // Por simplicidade usarei o .pgm usado como exe
 void getInfo(Pgm *pgm)
 {
   char buffer[512];
-  int currentLine = 1, line, counter = 0, total = 0, i = 0, countSpaces = 0;
+  int currentLine = 1, line = 2, counter = 0, total = 0, i = 0, countSpaces = 0;
   bool d = true;
   bool keepReading = true;
-  FILE *f = fopen("glassware_noisy.pgm", "r");
+  FILE *f = fopen("columns.pgm", "r");
   do
   {
-    if (counter == 0)
-      line = 2;
-    else
-      line = 3;
-    counter++;
-    do
+    fgets(buffer, MAX_LINE, f);
+    if (feof(f))
     {
-      fgets(buffer, MAX_LINE, f);
-      if (feof(f))
+      keepReading = false;
+      break;
+    }
+
+    if (strchr(buffer, '#') != NULL) // Ignora linha com comentário
+      currentLine--;
+
+    if (currentLine == line)
+    {
+      if (line == 2)
       {
+        line++;
+        char *dimensions = strtok(buffer, " ");
+        while (dimensions != NULL)
+        { // A linha possui 2 valores (cols, lines), leio esses valores e salvo no struct.
+          if (d == true)
+            pgm->cols = atoi(dimensions);
+          else
+            pgm->lines = atoi(dimensions);
+          d = false;
+          dimensions = strtok(NULL, " ");
+        }
+      }
+      else if (line == 3)
+      {
+        pgm->highest = atoi(buffer);
         keepReading = false;
-        break;
       }
-      if (currentLine == line)
-      {
-        if (line == 2)
-        {
-          keepReading = false;
-          char *dimensions = strtok(buffer, " ");
-          while (dimensions != NULL)
-          { // A linha possui 2 valores (cols, lines), leio esses valores e salvo no struct.
-            if (d == true)
-              pgm->cols = atoi(dimensions);
-            else
-              pgm->lines = atoi(dimensions);
-            d = false;
-            dimensions = strtok(NULL, " ");
-          }
-        }
-        else if (line == 3)
-        {
-          pgm->highest = atoi(buffer);
-          keepReading = false;
-        }
-      }
-      currentLine++;
-    } while (keepReading);
-  } while (counter < 2);
+    }
+    currentLine++;
+  } while (keepReading);
   fclose(f);
   printf("cols: %d, line: %d, highest: %d", pgm->cols, pgm->lines, pgm->highest);
 
@@ -95,7 +91,7 @@ void getInfo(Pgm *pgm)
 void build(Pgm *pgm)
 {
   char buffer[512];
-  FILE *f = fopen("glassware_noisy.pgm", "r");
+  FILE *f = fopen("columns.pgm", "r");
   bool keepReading = true;
   int line = 0, total = 0, countSpaces = 0, i = 0;
 
@@ -103,6 +99,8 @@ void build(Pgm *pgm)
   {
     fgets(buffer, MAX_LINE, f);
     buffer[strcspn(buffer, "\n")] = 0;
+    if (strchr(buffer, "#") != NULL)
+      line--;
     if (feof(f))
     {
       printf("\nCheguei no final do arquivo");
@@ -134,7 +132,7 @@ void build(Pgm *pgm)
 
   // Salvando as informações do struct em um arquivo pgm temporario.
   printf("\ncols: %d, lines: %d, highest: %d, matrix[0][0]: %d", pgm->cols, pgm->lines, pgm->highest, pgm->matrix[0][0]);
-  f = fopen("glassware_noisyTemp.pgm", "wb");
+  f = fopen("columnsTemp.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
   fprintf(f, "%d\n", pgm->highest);
@@ -164,7 +162,7 @@ void brighten(int **matrix, Pgm *pgm)
       else
         bright[i][j] = matrix[i][j] + BRIGHTEN;
     }
-  FILE *f = fopen("glassware_noisy_bright.pgm", "wb");
+  FILE *f = fopen("columns_bright.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
   fprintf(f, "%d\n", (pgm->highest + BRIGHTEN < 255) ? pgm->highest + BRIGHTEN : 255);
@@ -207,22 +205,14 @@ void polarize(int **matrix, Pgm *pgm)
 void rotate(int **matrix, Pgm *pgm)
 {
   printf("\nSalve rodado");
-  int rotatedTemp[pgm->lines][pgm->cols];
+
   int rotated[pgm->cols][pgm->lines];
   int i = 0, j = 0;
 
-  for (int i = 0; i < pgm->lines; i++)
-    for (int j = 0; j < pgm->cols; j++)
-    {
-      rotatedTemp[i][j] = matrix[i][j];
-    }
   for (i = 0; i < pgm->lines; i++)
-  {
     for (j = 0; j < pgm->cols; j++)
-    {
-      rotated[j][pgm->lines - i - 1] = rotatedTemp[i][j];
-    }
-  }
+      rotated[j][pgm->lines - i - 1] = matrix[i][j];
+
   // Print the matrix
   // Tranposing the matrix*
   /*for (int i = 0; i < pgm->lines; i++)
@@ -240,7 +230,7 @@ void rotate(int **matrix, Pgm *pgm)
 
   // Print the matrix*/
 
-  FILE *f = fopen("glassware_noisy_rotate.pgm", "wb");
+  FILE *f = fopen("columns_rotate.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->lines, pgm->cols);
   fprintf(f, "%d\n", pgm->highest);
@@ -274,7 +264,7 @@ void rotate(int **matrix, Pgm *pgm)
     }
     printf("\n");
   }
-  FILE *f = fopen("glassware_noisy_rotate.pgm", "wb");
+  FILE *f = fopen("columns_rotate.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
   fprintf(f, "%d\n", pgm->highest);
