@@ -207,41 +207,47 @@ void polarize(int **matrix, Pgm *pgm)
 void rotate(int **matrix, Pgm *pgm)
 {
   printf("\nSalve rodado");
-  int c = pgm->cols, l = pgm->lines;
-  int rotated[l][c];
-  for (int i = 0; i < l; i++)
-    for (int j = 0; j < c; j++)
-    {
-      // printf("\n Rotated matrix[%d][%d]: %d", i, j, matrix[i][j]);
-      rotated[i][j] = matrix[i][j];
-    }
-  // Print the matrix
-  // Tranposing the matrix
+  int rotatedTemp[pgm->lines][pgm->cols];
+  int rotated[pgm->cols][pgm->lines];
+  int i = 0, j = 0;
+
   for (int i = 0; i < pgm->lines; i++)
+    for (int j = 0; j < pgm->cols; j++)
+    {
+      rotatedTemp[i][j] = matrix[i][j];
+    }
+  for (i = 0; i < pgm->lines; i++)
   {
-    for (int j = i; j < pgm->cols; j++)
-      swap(&rotated[i][j], &rotated[j][i]);
+    for (j = 0; j < pgm->cols; j++)
+    {
+      rotated[j][pgm->lines - i - 1] = rotatedTemp[i][j];
+    }
   }
+  // Print the matrix
+  // Tranposing the matrix*
+  /*for (int i = 0; i < pgm->lines; i++)
+    for (int j = i; j < pgm->cols; j++)
+      swap(&rotatedTemp[i][j], &rotatedTemp[j][i]);
 
   // Reversing each row of the matrix
   for (int i = 0; i < pgm->lines; i++)
-  {
     for (int j = 0; j < pgm->cols / 2; j++)
-    {
-      swap(&rotated[i][j], &rotated[i][pgm->cols - j - 1]);
-    }
-  }
+      swap(&rotatedTemp[i][j], &rotatedTemp[i][pgm->cols - j - 1]);
 
-  // Print the matrix
+  for (int i = 0; i < pgm->cols; i++)
+    for (int j = 0; j < pgm->lines; j++)
+      rotated[i][j] = rotatedTemp[i][j];
+
+  // Print the matrix*/
 
   FILE *f = fopen("glassware_noisy_rotate.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->lines, pgm->cols);
   fprintf(f, "%d\n", pgm->highest);
   // Print the matrix
-  for (int i = 0; i < l; i++)
+  for (i = 0; i < pgm->cols; i++) // MUDAR LINHAS E COLUNAS OBTEM RESULTADO DIFERENTE
   {
-    for (int j = 0; j < c; j++)
+    for (j = 0; j < pgm->lines; j++)
       fprintf(f, "%d ", rotated[i][j]);
     fprintf(f, "\n");
   }
