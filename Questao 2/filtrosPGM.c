@@ -35,7 +35,7 @@ int main(int argc, char **argv) // Por simplicidade usarei o .pgm usado como exe
   brighten(pgm.matrix, &pgm); // Clareia
   rotate(pgm.matrix, &pgm);   // Roda
   // zoom(pgm.matrix, &pgm);
-  //  printMatrix();
+  polarize(pgm.matrix, &pgm); // Polariza, seta valores para 0 / 255
   return 0;
 }
 
@@ -99,7 +99,7 @@ void build(Pgm *pgm)
   {
     fgets(buffer, MAX_LINE, f);
     buffer[strcspn(buffer, "\n")] = 0;
-    if (strchr(buffer, "#") != NULL)
+    if (strchr(buffer, '#') != NULL)
       line--;
     if (feof(f))
     {
@@ -176,30 +176,50 @@ void brighten(int **matrix, Pgm *pgm)
 
 void zoom(int **matrix, Pgm *pgm)
 {
-  int cols = pgm->cols / 2, lines = pgm->lines / 2;
-  int c = 0, l = 0;
-  int img[4][4];
-  int image[8][8] = {12, 12, 9, 43, 76, 23, 87, 12,
-                     12, 11, 9, 23, 76, 43, 87, 12,
-                     32, 13, 9, 99, 76, 12, 87, 12,
-                     22, 12, 9, 234, 76, 23, 87, 12,
-                     42, 9, 9, 65, 76, 12, 87, 12,
-                     12, 8, 9, 43, 14, 23, 87, 76,
-                     1, 45, 9, 67, 76, 34, 87, 86,
-                     2, 87, 9, 33, 42, 23, 87, 12};
-  for (int i = 0; i < 8; i += 2)
-  {
-    for (int j = 0; j < 8; j += 2)
-    {
-      img[l][c] =
-          c++;
-    }
-    l++;
-  }
 }
 
 void polarize(int **matrix, Pgm *pgm)
 {
+  int **polarized;
+  int starterC = 0;
+  int starterL = 0;
+  int sum = 0;
+  int average = 0;
+  polarized = (int **)malloc(pgm->lines * sizeof(int *));
+  for (int i = 0; i < pgm->lines; i++)
+    polarized[i] = (int *)malloc(pgm->cols * sizeof(int));
+
+  do
+  {
+    if (starterL >= pgm->lines || starterC >= pgm->cols)
+      break;
+
+    for (int i = starterL; i < starterL + 2; i++)
+      for (int j = starterC; j < starterC + 2; j++)
+        sum += matrix[i][j]; // vai passar pela matrix[0][0], [0][1], [1][0], [1][1]
+
+    average = (sum / 4 < 128) ? 0 : 255;
+    fillPolarize(polarized, starterL, starterC, average); // Vou fazer a mesma coisa que no loop de cima, só q preenchendo a matrix com a média da soma
+    sum = 0;
+    if (starterC + 2 >= pgm->cols) // Se cheguei no numero max de colunas
+    {
+      starterC = 0;  // Seto a coluna pra 0
+      starterL += 2; // E agora vou scanear 2 linhas pra baixo
+    }                // Primeira vez [0][0]...[1][1], Segunda: [2][0]...[3][1]
+    else
+      starterC += 2; // Sempre quero começar a scanear dnv 2 colunas a frente da anterior ex:
+                     // primeira vez: [0][0]...[1][1], segunda vez: [0][2]...[1][3]
+  } while (starterL < pgm->lines);
+  FILE *f = fopen("columns_polarize.pgm", "wb");
+  fprintf(f, "P2\n");
+  fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
+  fprintf(f, "%d\n", 255);
+  for (int i = 0; i < pgm->lines; i++)
+  {
+    for (int j = 0; j < pgm->cols; j++)
+      fprintf(f, "%d ", polarized[i][j]);
+    fprintf(f, "\n");
+  }
 }
 
 void rotate(int **matrix, Pgm *pgm)
@@ -213,67 +233,17 @@ void rotate(int **matrix, Pgm *pgm)
     for (j = 0; j < pgm->cols; j++)
       rotated[j][pgm->lines - i - 1] = matrix[i][j];
 
-  // Print the matrix
-  // Tranposing the matrix*
-  /*for (int i = 0; i < pgm->lines; i++)
-    for (int j = i; j < pgm->cols; j++)
-      swap(&rotatedTemp[i][j], &rotatedTemp[j][i]);
-
-  // Reversing each row of the matrix
-  for (int i = 0; i < pgm->lines; i++)
-    for (int j = 0; j < pgm->cols / 2; j++)
-      swap(&rotatedTemp[i][j], &rotatedTemp[i][pgm->cols - j - 1]);
-
-  for (int i = 0; i < pgm->cols; i++)
-    for (int j = 0; j < pgm->lines; j++)
-      rotated[i][j] = rotatedTemp[i][j];
-
-  // Print the matrix*/
-
   FILE *f = fopen("columns_rotate.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->lines, pgm->cols);
   fprintf(f, "%d\n", pgm->highest);
-  // Print the matrix
+
   for (i = 0; i < pgm->cols; i++) // MUDAR LINHAS E COLUNAS OBTEM RESULTADO DIFERENTE
   {
     for (j = 0; j < pgm->lines; j++)
       fprintf(f, "%d ", rotated[i][j]);
     fprintf(f, "\n");
   }
-  /*for (int i = 0; i < pgm->cols; i++)
-  {
-    for (int j = pgm->lines - 1; j >= pgm->cols; j--)
-      swap(&matrix[i][j], &matrix[j][i]);
-  }
-
-  for (int i = 0; i < pgm->lines; i++)
-  {
-    for (int j = 0; j < pgm->cols / 2; j++)
-    {
-      swap(&matrix[i][j], &matrix[i][pgm->cols - j - 1]);
-    }
-  }
-
-  printf("Rotated Matrix :\n");
-  for (int i = 0; i < pgm->lines; i++)
-  {
-    for (int j = 0; j < pgm->cols; j++)
-    {
-      printf("%d ", matrix[i][j]);
-    }
-    printf("\n");
-  }
-  FILE *f = fopen("columns_rotate.pgm", "wb");
-  fprintf(f, "P2\n");
-  fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
-  fprintf(f, "%d\n", pgm->highest);
-  for (int i = 0; i < pgm->lines - 1; i++)
-  {
-    for (int j = 0; j < pgm->cols - 1; j++)
-      fprintf(f, "%d ", matrix[i][j]);
-    fprintf(f, "\n");
-  }*/
 }
 
 void swap(int *i, int *j)
@@ -281,4 +251,14 @@ void swap(int *i, int *j)
   int temp = *i;
   *i = *j;
   *j = temp;
+}
+
+void fillPolarize(int **polarized, int starterL, int starterC, int average)
+{
+  for (int i = starterL; i < starterL + 2; i++)
+    for (int j = starterC; j < starterC + 2; j++)
+    {
+      polarized[i][j] = average;
+      // printf("\npolarized[%d][%d]: %d, average: %d", i, j, polarized[i][j], average);
+    }
 }
