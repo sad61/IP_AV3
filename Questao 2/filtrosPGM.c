@@ -182,26 +182,21 @@ void zoom(int **matrix, Pgm *pgm, char *fileName)
   zoomed = (int **)malloc(lines * sizeof(int *));
   for (i = 0; i < lines; i++)
     zoomed[i] = (int *)malloc(cols * sizeof(int));
-  // printf("\nFORA starterL: %d, starterC: %d, average: %d\n", starterL, starterC, average);
   do
   {
-    // printf("\nFORA starterL: %d, starterC: %d, average: %d\n", starterL, starterC, average);
     if (starterL >= pgm->lines || starterC >= pgm->cols)
       break;
-    for (i = starterL; i < starterL + 2; i++)
+    for (i = starterL; i < starterL + 2; i++) // Mesma ideia do polarize();
       for (j = starterC; j < starterC + 2; j++)
         sum += matrix[i][j];
+
     average = sum / 4;
     sum = 0;
     highest = (highest < average) ? average : highest;
-    k = (starterL + 1) / 2;
-    z = (starterC + 1) / 2;
-
-    // printf("\nFORA starterL: %d, starterC: %d, lines: %d, cols: %d", starterL, starterC, k, z);
-    zoomed[k][z] = average;
-    // printf("\nFora, starterL: %d, starterC: %d", k, z);
-    // fillZoomed(zoomed, k, z, average);
-
+    k = (starterL + 1) / 2; // Ao dividir por 2 ele converte pro inteiro mais proximo
+    z = (starterC + 1) / 2; // Isso as vezes fazia com que 2 numeros diferentes, divididos dessem o mesmo resultado
+    zoomed[k][z] = average; // 318 / 2 = 159, 319 / 2 = 319
+                            // Somando 1 antes de dividir resolve esse problema
     if (starterC + 2 >= pgm->cols)
     {
       starterC = 0;
@@ -269,18 +264,6 @@ void rotate(int **matrix, Pgm *pgm, char *fileName)
   for (i = 0; i < lines; i++)
     for (j = 0; j < cols; j++)
       rotated[j][lines - i - 1] = matrix[i][j];
-
-  /*FILE *f = fopen("columns_rotate.pgm", "wb");
-  fprintf(f, "P2\n");
-  fprintf(f, "%d %d\n", pgm->lines, pgm->cols);
-  fprintf(f, "%d\n", pgm->highest);
-
-  for (i = 0; i < pgm->cols; i++) // MUDAR LINHAS E COLUNAS OBTEM RESULTADO DIFERENTE
-  {
-    for (j = 0; j < pgm->lines; j++)
-      fprintf(f, "%d ", rotated[i][j]);
-    fprintf(f, "\n");
-  }*/
   writeFile(rotated, cols, lines, highest, (char *)strcat(tempName, "4.pgm"));
 }
 
