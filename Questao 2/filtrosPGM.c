@@ -15,37 +15,43 @@ typedef struct
   int **matrix;
 } Pgm;
 
-void getInfo(Pgm *pgm);
-void build(Pgm *pgm);
-void brighten(int **matrix, Pgm *pgm);
-void zoom(int **matrix, Pgm *pgm);
-void polarize(int **matrix, Pgm *pgm);
-void rotate(int **matrix, Pgm *pgm);
+void getInfo(Pgm *pgm, char *fileName);
+void build(Pgm *pgm, char *fileName);
+void brighten(int **matrix, Pgm *pgm, char *fileName);
+void zoom(int **matrix, Pgm *pgm, char *fileName);
+void polarize(int **matrix, Pgm *pgm, char *fileName);
+void rotate(int **matrix, Pgm *pgm, char *fileName);
+void fillPolarized(int **matrix, int starterL, int starterC, int average);
+void writeFile(int **matrix, int lines, int cols, int highest, char *fileName);
 
 int main(int argc, char **argv) // Por simplicidade usarei o .pgm usado como exemplo.
 {
   Pgm pgm;
-  getInfo(&pgm); // Vai pegar as dimensions da matrix e o maior valor.
+  char *fileName = strtok(argv[1], "."); // Removendo o pegando só a parte antes do . do nome do arquivo
+  getInfo(&pgm, fileName);               // Vai pegar as dimensions da matrix e o maior valor.
 
   pgm.matrix = (int **)malloc(pgm.lines * sizeof(int *));
   for (int i = 0; i < pgm.lines; i++)
     pgm.matrix[i] = (int *)malloc(pgm.cols * sizeof(int));
 
-  build(&pgm);                // Construo a matriz
-  brighten(pgm.matrix, &pgm); // Clareia
-  rotate(pgm.matrix, &pgm);   // Roda
-  // zoom(pgm.matrix, &pgm);
-  polarize(pgm.matrix, &pgm); // Polariza, seta valores para 0 / 255
+  build(&pgm, fileName);                // Construo a matriz
+  brighten(pgm.matrix, &pgm, fileName); // Clareia
+  rotate(pgm.matrix, &pgm, fileName);   // Roda
+  zoom(pgm.matrix, &pgm, fileName);     // Zoom out
+  polarize(pgm.matrix, &pgm, fileName); // Polariza, seta valores para 0 / 255
   return 0;
 }
 
-void getInfo(Pgm *pgm)
+void getInfo(Pgm *pgm, char *fileName)
 {
   char buffer[512];
-  int currentLine = 1, line = 2, counter = 0, total = 0, i = 0, countSpaces = 0;
+  int currentLine = 1, line = 2;
   bool d = true;
   bool keepReading = true;
-  FILE *f = fopen("columns.pgm", "r");
+  char tempName[32];
+  strcpy(tempName, fileName);
+  printf("\ngetInfo tepName: %s\n", tempName);
+  FILE *f = fopen(strcat(tempName, ".pgm"), "r");
   do
   {
     fgets(buffer, MAX_LINE, f);
@@ -88,13 +94,15 @@ void getInfo(Pgm *pgm)
   // pegando os valores da matriz do arquivo e salvando no struct;
 }
 
-void build(Pgm *pgm)
+void build(Pgm *pgm, char *fileName)
 {
   char buffer[512];
-  FILE *f = fopen("columns.pgm", "r");
   bool keepReading = true;
-  int line = 0, total = 0, countSpaces = 0, i = 0;
-
+  char tempName[32];
+  strcpy(tempName, fileName);
+  printf("\nbuild tempName: %s, fileName: %s", tempName, fileName);
+  int line = 0, total = 0, j = 0, i = 0;
+  FILE *f = fopen(strcat(tempName, ".pgm"), "rb");
   do
   {
     fgets(buffer, MAX_LINE, f);
@@ -113,14 +121,14 @@ void build(Pgm *pgm)
       while (values != NULL)
       {
         total++;
-        // printf("values: %d, cols: %d, pgm->matrix[%d][%d], total: %d\n", atoi(values), pgm->cols, i, countSpaces, total);
-        pgm->matrix[i][countSpaces] = atoi(values);
-        if (i == pgm->lines - 1 && countSpaces == pgm->cols - 1)
+        // printf("values: %d, cols: %d, pgm->matrix[%d][%d], total: %d\n", atoi(values), pgm->cols, i, j, total);
+        pgm->matrix[i][j] = atoi(values);
+        if (i == pgm->lines - 1 && j == pgm->cols - 1)
           break;
-        countSpaces++;
-        if (countSpaces == pgm->cols)
+        j++;
+        if (j == pgm->cols)
         {
-          countSpaces = 0;
+          j = 0;
           i++;
         }
         values = strtok(NULL, " ");
@@ -129,30 +137,22 @@ void build(Pgm *pgm)
     line++;
   } while (keepReading);
   fclose(f);
-
-  // Salvando as informações do struct em um arquivo pgm temporario.
-  printf("\ncols: %d, lines: %d, highest: %d, matrix[0][0]: %d", pgm->cols, pgm->lines, pgm->highest, pgm->matrix[0][0]);
-  f = fopen("columnsTemp.pgm", "wb");
-  fprintf(f, "P2\n");
-  fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
-  fprintf(f, "%d\n", pgm->highest);
-  for (int i = 0; i < pgm->lines; i++)
-  {
-    for (int j = 0; j < pgm->cols; j++)
-    {
-      // printf("\nmatrix[%d][%d]: %3d", i, j, pgm->matrix[27][90]);
-      fprintf(f, "%d  ", pgm->matrix[i][j]);
-    }
-    fprintf(f, "\n");
-  }
-  fclose(f);
 }
 
-void brighten(int **matrix, Pgm *pgm)
+void brighten(int **matrix, Pgm *pgm, char *fileName)
 {
-  int bright[pgm->lines][pgm->cols];
-  for (int i = 0; i < pgm->lines; i++)
-    for (int j = 0; j < pgm->cols; j++)
+  int cols = pgm->cols, lines = pgm->lines;
+  int **bright;
+  int highest = 0;
+  char tempName[32];
+  strcpy(tempName, fileName);
+
+  bright = (int **)malloc(lines * sizeof(int *));
+  for (int i = 0; i < lines; i++)
+    bright[i] = (int *)malloc(cols * sizeof(int));
+
+  for (int i = 0; i < lines; i++)
+    for (int j = 0; j < cols; j++)
     {
       // printf("\n Brighten matrix[%d][%d]: %d", i, j, matrix[i][j]);
       if (matrix[i][j] + BRIGHTEN > 255)
@@ -161,34 +161,73 @@ void brighten(int **matrix, Pgm *pgm)
       }
       else
         bright[i][j] = matrix[i][j] + BRIGHTEN;
+      highest = (highest < bright[i][j]) ? bright[i][j] : highest;
     }
-  FILE *f = fopen("columns_bright.pgm", "wb");
-  fprintf(f, "P2\n");
-  fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
-  fprintf(f, "%d\n", (pgm->highest + BRIGHTEN < 255) ? pgm->highest + BRIGHTEN : 255);
-  for (int i = 0; i < pgm->lines; i++)
-  {
-    for (int j = 0; j < pgm->cols; j++)
-      fprintf(f, "%d ", bright[i][j]);
-    fprintf(f, "\n");
-  }
+  writeFile(bright, lines, cols, highest, (char *)strcat(tempName, "1.pgm"));
 }
 
-void zoom(int **matrix, Pgm *pgm)
+void zoom(int **matrix, Pgm *pgm, char *fileName)
 {
-}
-
-void polarize(int **matrix, Pgm *pgm)
-{
-  int **polarized;
+  int **zoomed;
+  int lines = pgm->lines / 2, cols = pgm->cols / 2;
   int starterC = 0;
   int starterL = 0;
   int sum = 0;
   int average = 0;
-  polarized = (int **)malloc(pgm->lines * sizeof(int *));
-  for (int i = 0; i < pgm->lines; i++)
-    polarized[i] = (int *)malloc(pgm->cols * sizeof(int));
+  int highest = 0;
+  int i, j, k = 0, z = 0;
+  char tempName[32];
+  strcpy(tempName, fileName);
 
+  zoomed = (int **)malloc(lines * sizeof(int *));
+  for (i = 0; i < lines; i++)
+    zoomed[i] = (int *)malloc(cols * sizeof(int));
+  // printf("\nFORA starterL: %d, starterC: %d, average: %d\n", starterL, starterC, average);
+  do
+  {
+    // printf("\nFORA starterL: %d, starterC: %d, average: %d\n", starterL, starterC, average);
+    if (starterL >= pgm->lines || starterC >= pgm->cols)
+      break;
+    for (i = starterL; i < starterL + 2; i++)
+      for (j = starterC; j < starterC + 2; j++)
+        sum += matrix[i][j];
+    average = sum / 4;
+    sum = 0;
+    highest = (highest < average) ? average : highest;
+    k = (starterL + 1) / 2;
+    z = (starterC + 1) / 2;
+
+    // printf("\nFORA starterL: %d, starterC: %d, lines: %d, cols: %d", starterL, starterC, k, z);
+    zoomed[k][z] = average;
+    // printf("\nFora, starterL: %d, starterC: %d", k, z);
+    // fillZoomed(zoomed, k, z, average);
+
+    if (starterC + 2 >= pgm->cols)
+    {
+      starterC = 0;
+      starterL += 2;
+    }
+    else
+      starterC += 2;
+  } while (starterL < pgm->lines);
+  writeFile(zoomed, lines, cols, highest, (char *)strcat(tempName, "2.pgm"));
+}
+
+void polarize(int **matrix, Pgm *pgm, char *fileName)
+{
+  int **polarized;
+  int cols = pgm->cols, lines = pgm->lines;
+  int starterC = 0;
+  int starterL = 0;
+  int sum = 0;
+  int average = 0;
+  int highest = 0;
+  char tempName[32];
+  strcpy(tempName, fileName);
+
+  polarized = (int **)malloc(lines * sizeof(int *));
+  for (int i = 0; i < lines; i++)
+    polarized[i] = (int *)malloc(cols * sizeof(int));
   do
   {
     if (starterL >= pgm->lines || starterC >= pgm->cols)
@@ -198,10 +237,11 @@ void polarize(int **matrix, Pgm *pgm)
       for (int j = starterC; j < starterC + 2; j++)
         sum += matrix[i][j]; // vai passar pela matrix[0][0], [0][1], [1][0], [1][1]
 
+    highest = (highest < average) ? average : highest;
     average = (sum / 4 < 128) ? 0 : 255;
-    fillPolarize(polarized, starterL, starterC, average); // Vou fazer a mesma coisa que no loop de cima, só q preenchendo a matrix com a média da soma
+    fillPolarized(polarized, starterL, starterC, average); // Vou fazer a mesma coisa que no loop de cima, só q preenchendo a matrix com a média da soma
     sum = 0;
-    if (starterC + 2 >= pgm->cols) // Se cheguei no numero max de colunas
+    if (starterC + 2 >= cols) // Se cheguei no numero max de colunas
     {
       starterC = 0;  // Seto a coluna pra 0
       starterL += 2; // E agora vou scanear 2 linhas pra baixo
@@ -209,31 +249,28 @@ void polarize(int **matrix, Pgm *pgm)
     else
       starterC += 2; // Sempre quero começar a scanear dnv 2 colunas a frente da anterior ex:
                      // primeira vez: [0][0]...[1][1], segunda vez: [0][2]...[1][3]
-  } while (starterL < pgm->lines);
-  FILE *f = fopen("columns_polarize.pgm", "wb");
-  fprintf(f, "P2\n");
-  fprintf(f, "%d %d\n", pgm->cols, pgm->lines);
-  fprintf(f, "%d\n", 255);
-  for (int i = 0; i < pgm->lines; i++)
-  {
-    for (int j = 0; j < pgm->cols; j++)
-      fprintf(f, "%d ", polarized[i][j]);
-    fprintf(f, "\n");
-  }
+  } while (starterL < lines);
+  writeFile(polarized, lines, cols, highest, (char *)strcat(tempName, "3.pgm"));
 }
 
-void rotate(int **matrix, Pgm *pgm)
+void rotate(int **matrix, Pgm *pgm, char *fileName)
 {
-  printf("\nSalve rodado");
-
-  int rotated[pgm->cols][pgm->lines];
+  int cols = pgm->cols, lines = pgm->lines;
+  int **rotated;
+  int highest = pgm->highest;
   int i = 0, j = 0;
+  char tempName[32];
+  strcpy(tempName, fileName);
 
-  for (i = 0; i < pgm->lines; i++)
-    for (j = 0; j < pgm->cols; j++)
-      rotated[j][pgm->lines - i - 1] = matrix[i][j];
+  rotated = (int **)malloc(cols * sizeof(int *));
+  for (int i = 0; i < cols; i++)
+    rotated[i] = (int *)malloc(lines * sizeof(int));
 
-  FILE *f = fopen("columns_rotate.pgm", "wb");
+  for (i = 0; i < lines; i++)
+    for (j = 0; j < cols; j++)
+      rotated[j][lines - i - 1] = matrix[i][j];
+
+  /*FILE *f = fopen("columns_rotate.pgm", "wb");
   fprintf(f, "P2\n");
   fprintf(f, "%d %d\n", pgm->lines, pgm->cols);
   fprintf(f, "%d\n", pgm->highest);
@@ -243,17 +280,11 @@ void rotate(int **matrix, Pgm *pgm)
     for (j = 0; j < pgm->lines; j++)
       fprintf(f, "%d ", rotated[i][j]);
     fprintf(f, "\n");
-  }
+  }*/
+  writeFile(rotated, cols, lines, highest, (char *)strcat(tempName, "4.pgm"));
 }
 
-void swap(int *i, int *j)
-{
-  int temp = *i;
-  *i = *j;
-  *j = temp;
-}
-
-void fillPolarize(int **polarized, int starterL, int starterC, int average)
+void fillPolarized(int **polarized, int starterL, int starterC, int average)
 {
   for (int i = starterL; i < starterL + 2; i++)
     for (int j = starterC; j < starterC + 2; j++)
@@ -261,4 +292,18 @@ void fillPolarize(int **polarized, int starterL, int starterC, int average)
       polarized[i][j] = average;
       // printf("\npolarized[%d][%d]: %d, average: %d", i, j, polarized[i][j], average);
     }
+}
+
+void writeFile(int **matrix, int lines, int cols, int highest, char *fileName)
+{
+  FILE *f = fopen(fileName, "wb");
+  fprintf(f, "P2\n");
+  fprintf(f, "%d %d\n", cols, lines);
+  fprintf(f, "%d\n", highest);
+  for (int i = 0; i < lines; i++)
+  {
+    for (int j = 0; j < cols; j++)
+      fprintf(f, "%d ", matrix[i][j]);
+    fprintf(f, "\n");
+  }
 }
