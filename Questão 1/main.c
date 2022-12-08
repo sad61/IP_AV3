@@ -32,6 +32,9 @@ typedef struct{
 } Lista;
 
 Node* adicionaNo(Lista *lista);
+Node* admitir(Lista *Lista);
+Node* reorganizaDepartamento(Lista *Lista, Node* novoFuncionario, departamento departamentos[]);
+Node* get(Lista *lista, int iDoFuncionario);
 
 int main() {
 
@@ -149,7 +152,10 @@ int main() {
             case 1:
                 if (numeroDeFuncionarios < MAX_FUNC-1)
                 {
-                    admitir();
+                    Node* novoFuncionario = admitir(&listaDeFuncionarios);
+                    printf("\nCheguei aqui!!!\n");
+                    reorganizaDepartamento(&listaDeFuncionarios, novoFuncionario, departamentos);
+                    printf("\nCheguei aqui!!!\n");
                     numeroDeFuncionarios++;
                 }
                 else
@@ -173,6 +179,36 @@ int main() {
             default:
                 printf("\nOpcao invalida, selecione uma das opcoes disponiveis!\n");
         }
+
+        printf("\nCheguei aqui!!!\n");
+    
+        printf("\n| %s\t", "linha");
+        printf("| %s\t", "numFunc");
+        printf("| %s\t", "nivel");
+        printf("| %s\t", "departamento");
+        printf("| %s\t", "proximo");
+        printf("\n");
+
+        for (Node* p = listaDeFuncionarios.head; p != NULL; p = p->proximo)
+        {
+            printf("| %d\t", p->trabalhador.linha);
+            printf("| %d\t\t", p->trabalhador.numFunc);
+            printf("| %d\t", p->trabalhador.nivel);
+            printf("| %d\t\t", p->trabalhador.departamento);
+            printf("| %d\t", p->trabalhador.proximo);
+            printf("\n");
+        }
+
+        printf("\n| %s\t", "codDepto");
+        printf("| %s\t", "nomeDepto");
+        printf("| %s\t", "inicio");
+        printf("\n");
+        for (int i = 0; departamentos[i].codDepto != -1; i++) {
+            printf("| %d\t", departamentos[i].codDepto);
+            printf("| %s\t\t", departamentos[i].nomeDepto);
+            printf("| %d\t", departamentos[i].inicio);
+            printf("\n");
+        }
     }while (operacao != 0);
     
     printf("\nPROGRAMA ENCERRADO\n\n");
@@ -180,7 +216,17 @@ int main() {
     return 0;
 }
 
-Node* adicionaNo(Lista *lista){
+Node* get(Lista *lista, int iDoFuncionario) {
+    Node* funcAtual = lista->head;
+
+    for (int i = 0; i < iDoFuncionario; i++) {
+        funcAtual = funcAtual->proximo;
+    }
+
+    return funcAtual;
+}
+
+Node* adicionaNo(Lista *lista) {
     Node* node = malloc(sizeof(Node));
     node->proximo = NULL;
 
@@ -200,4 +246,68 @@ Node* adicionaNo(Lista *lista){
     }
 
     return node;
+}
+
+Node* admitir(Lista *lista) {
+    Node* novoNode = adicionaNo(lista);
+    novoNode->trabalhador.linha = numeroDeFuncionarios;
+    novoNode->trabalhador.proximo = -1;
+
+    printf("\nPor favor, insira os seguintes dados do novo funcionario:\n"
+           "\tNumero do funcionario: ");
+    scanf("%d", &novoNode->trabalhador.numFunc);
+
+    printf("\nnivel salarial do funcionario: ");
+    scanf("%d", &novoNode->trabalhador.nivel);
+
+    printf("\tdepartamento do funcionario: ");
+    scanf("%d", &novoNode->trabalhador.departamento);
+
+    printf("Novo funcionario adicionado\n");
+
+    return novoNode;
+}
+
+Node* reorganizaDepartamento(Lista *lista, Node* novoFuncionario, departamento departamentos[]) {
+    int iDoDepartamento = novoFuncionario->trabalhador.departamento-1;
+
+    int iDoFuncionario = departamentos[iDoDepartamento].inicio;
+    int iDoProxfunc;
+
+    if (iDoFuncionario == -1) {
+        departamentos[iDoDepartamento].inicio = novoFuncionario->trabalhador.linha;
+        return novoFuncionario;
+    }
+
+    Node* funcAtual = get(lista, iDoFuncionario);
+
+    if (funcAtual->trabalhador.numFunc > novoFuncionario->trabalhador.numFunc) {
+        departamentos[iDoDepartamento].inicio = novoFuncionario->trabalhador.linha;
+        novoFuncionario->trabalhador.proximo = funcAtual->trabalhador.linha;
+        return novoFuncionario;
+    }
+
+    iDoProxfunc = funcAtual->trabalhador.proximo;
+
+    while (iDoProxfunc != -1) {
+        funcAtual = get(lista, iDoFuncionario);
+        Node* proxFunc = get(lista, iDoProxfunc);
+
+        if (funcAtual->trabalhador.numFunc <= novoFuncionario->trabalhador.numFunc &&
+            novoFuncionario->trabalhador.numFunc <= proxFunc->trabalhador.numFunc)
+        {
+            funcAtual->trabalhador.proximo = novoFuncionario->trabalhador.linha;
+            novoFuncionario->trabalhador.proximo = proxFunc->trabalhador.linha;
+            return novoFuncionario;   
+        }
+        else
+        {
+            iDoFuncionario = iDoProxfunc;
+            iDoProxfunc = proxFunc->trabalhador.proximo;
+        }
+    }
+
+    funcAtual->trabalhador.proximo = novoFuncionario->trabalhador.linha;
+    novoFuncionario->trabalhador.proximo = -1;
+    return novoFuncionario;
 }
