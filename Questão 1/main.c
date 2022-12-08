@@ -1,12 +1,13 @@
 #include <stdio.h>
+#include <Windows.h>
+#include <unistd.h>
 #define MAX_FUNC 21
-#define MAX_DEPT 6
+#define MAX_DEPT 5
 
 
 //Esses valores servirão para auxiliar no manuseio
 //dos dados dos arquivos
 int numeroDeFuncionarios = 0;
-int numeroDeDepartamentos = 0;
 
 typedef struct {
     int linha;
@@ -31,10 +32,15 @@ typedef struct{
     Node* head;
 } Lista;
 
+void mostrarTabelaFunc(Lista *lista);
+void mostrarTabelaDpto(departamento departamentos[]);
 Node* adicionaNo(Lista *lista);
 Node* admitir(Lista *Lista);
 Node* reorganizaDepartamento(Lista *Lista, Node* novoFuncionario, departamento departamentos[]);
+Node* acharFuncionarioEspecifico(Lista *lista, int numeroDoFuncionario);
 Node* get(Lista *lista, int iDoFuncionario);
+Node* funcionariosDeDepartamento(Lista *lista, int inicioDoDpto);
+
 
 int main() {
 
@@ -43,7 +49,8 @@ int main() {
     FILE *funcArq = fopen("funcionarios.dat", "r");
     FILE *departArq = fopen("departamentos.dat", "r");
 
-    funcionario funcionarios[MAX_FUNC];
+    Lista listaDeFuncionarios;
+    listaDeFuncionarios.head = NULL;
     departamento departamentos[MAX_DEPT];
 
     char lixo[1000];
@@ -59,16 +66,12 @@ int main() {
     
 
     //lendo os dados do arquivo funcionarios.dat para o vetor 'funcionarios'
-    for (i = 0; i < MAX_FUNC; i++) {
-        if (feof(funcArq)) {
-            // -1 na linha será a forma de identificar que o funcionário não existe
-            funcionarios[i].linha = -1;
-        } else {
-            fscanf(funcArq, "%d %d", &funcionarios[i].linha, &funcionarios[i].numFunc);
-            fscanf(funcArq, "%d %d", &funcionarios[i].nivel, &funcionarios[i].departamento);
-            fscanf(funcArq, "%d ", &funcionarios[i].proximo);
-            numeroDeFuncionarios = i+1;
-        }
+    while (!feof(funcArq)) {
+        Node* noAuxiliar = adicionaNo(&listaDeFuncionarios);
+        fscanf(funcArq, "%d %d", &noAuxiliar->trabalhador.linha, &noAuxiliar->trabalhador.numFunc);
+        fscanf(funcArq, "%d %d", &noAuxiliar->trabalhador.nivel, &noAuxiliar->trabalhador.departamento);
+        fscanf(funcArq, "%d ", &noAuxiliar->trabalhador.proximo);
+        numeroDeFuncionarios++;
     }
 
     //lendo os dados do arquivo funcionarios.dat para o vetor 'funcionarios'
@@ -78,63 +81,20 @@ int main() {
             departamentos[i].codDepto = -1;
         } else {
             fscanf(departArq, "%d", &departamentos[i].codDepto);
-            fscanf(departArq, " %s", &departamentos[i].nomeDepto);
+            fscanf(departArq, "%s", &departamentos[i].nomeDepto);
             fscanf(departArq, "%d", &departamentos[i].inicio);
-            numeroDeDepartamentos = i+1;
         }
     }
 
-
-    //Gerando e preenchendo a lista endaceada 'listaDeFuncionarios'
-    //para permitir melhor manipulação dos dados
-    Lista listaDeFuncionarios;
-    listaDeFuncionarios.head = NULL;
-
-    for (int i = 0; funcionarios[i].linha != -1 && i < MAX_FUNC; i++) {
-        Node* noAuxiliar = adicionaNo(&listaDeFuncionarios);
-
-        noAuxiliar->trabalhador.linha = funcionarios[i].linha;
-        noAuxiliar->trabalhador.numFunc = funcionarios[i].numFunc;
-        noAuxiliar->trabalhador.nivel = funcionarios[i].nivel;
-        noAuxiliar->trabalhador.departamento = funcionarios[i].departamento;
-        noAuxiliar->trabalhador.proximo = funcionarios[i].proximo;
-    }
-
-
-    //printando na tela a lista de funcionários atual
-    printf("\n| %s\t", "linha");
-    printf("| %s\t", "numFunc");
-    printf("| %s\t", "nivel");
-    printf("| %s\t", "departamento");
-    printf("| %s\t", "proximo");
-    printf("\n");
-    for (int i = 0; funcionarios[i].linha != -1; i++) {
-        printf("| %d\t", funcionarios[i].linha);
-        printf("| %d\t\t", funcionarios[i].numFunc);
-        printf("| %d\t", funcionarios[i].nivel);
-        printf("| %d\t\t", funcionarios[i].departamento);
-        printf("| %d\t", funcionarios[i].proximo);
-        printf("\n");
-    }
-
-
-    //printando na tela a lista de departamentos
-    printf("\n| %s\t", "codDepto");
-    printf("| %s\t", "nomeDepto");
-    printf("| %s\t", "inicio");
-    printf("\n");
-    for (int i = 0; departamentos[i].codDepto != -1; i++) {
-        printf("| %d\t", departamentos[i].codDepto);
-        printf("| %s\t\t", departamentos[i].nomeDepto);
-        printf("| %d\t", departamentos[i].inicio);
-        printf("\n");
-    }
+    mostrarTabelaFunc(&listaDeFuncionarios);
+    mostrarTabelaDpto(departamentos);
 
 
     do {
-        int numeroDoFuncionario, nivelSalarial;
-        int numeroDoNovoDepartamento, numeroDoDepartamentoAnterior;
-
+        int numero, iDoInicio, dptoEscolhido;
+        Lista listaDoDepartamento;
+        Node* funcDaBusca;
+        Sleep(500);
         printf("\nSelecione o tipo de operacao desejada:\n"
                "\tdigite '0' para encerrar o programa\n"
                "\tdigite '1' para admitir novo funcionario\n"
@@ -153,9 +113,7 @@ int main() {
                 if (numeroDeFuncionarios < MAX_FUNC-1)
                 {
                     Node* novoFuncionario = admitir(&listaDeFuncionarios);
-                    printf("\nCheguei aqui!!!\n");
                     reorganizaDepartamento(&listaDeFuncionarios, novoFuncionario, departamentos);
-                    printf("\nCheguei aqui!!!\n");
                     numeroDeFuncionarios++;
                 }
                 else
@@ -165,55 +123,134 @@ int main() {
                 
                 break;
             case 2:
-                //demitir();
+                if (numeroDeFuncionarios != 0) {
+                    //demitir(&listaDeFuncionarios);
+                }
+                else
+                {
+                    printf("\nNao ha funcionarios para serem demitidos\n");
+                }
                 break;
             case 3:
                 //mudarDeDepartamento();
                 break;
             case 4:
-                //consultarFuncionariosDeDepartamento();
+                if (numeroDeFuncionarios != 0) {
+
+                    printf("\nQual departamento de interesse: ");
+                    scanf("%d", &dptoEscolhido);
+
+                    while (dptoEscolhido < 1 || dptoEscolhido >= MAX_DEPT) {
+                        printf("\nEscolha um departamento valido!\n");
+                        Sleep(1000);
+                        mostrarTabelaDpto(departamentos);
+                        printf("\nOpcao: ");
+                        scanf("%d", &dptoEscolhido, lixo);
+                    }
+
+                    iDoInicio = departamentos[dptoEscolhido-1].inicio;
+
+                    listaDoDepartamento.head = funcionariosDeDepartamento(&listaDeFuncionarios, iDoInicio);
+                    
+                    printf("\nOperacao escolhida = visualizar funcionarios de um departamento\n"
+                           "departamento escolhido = %d\n", dptoEscolhido);
+                    Sleep(4000);
+
+                    if (listaDoDepartamento.head == NULL) {
+                        printf("O departamento esta vazio\n");
+                    }
+                    else
+                    {
+                        mostrarTabelaFunc(&listaDoDepartamento);
+                    }
+                }
+                else
+                {
+                    printf("\nNao existe nenhum funcionario contradado\n");
+                }
+                Sleep(8000);
                 break;
             case 5:
-                //consultarFuncionarioEspecifico();
+                printf("\nPor favor, informe o numero do funcionario que procura: ");
+                scanf("%d", &numero);
+
+                funcDaBusca = acharFuncionarioEspecifico(&listaDeFuncionarios, numero);
+
+                printf("\nOperacao escolhida = consultar funcionario\n"
+                       "numero do funcionario que se busca = %d", numero);
+
+                if (funcDaBusca == NULL) {
+                    printf("\nFuncionario nao encontrado\n");
+                }
+                else
+                {
+                    printf("\n| %s\t", "linha");
+                    printf("| %s\t", "numFunc");
+                    printf("| %s\t", "nivel");
+                    printf("| %s\t", "departamento");
+                    printf("| %s\t", "proximo");
+                    printf("\n");
+
+                    printf("| %d\t", funcDaBusca->trabalhador.linha);
+                    printf("| %d\t\t", funcDaBusca->trabalhador.numFunc);
+                    printf("| %d\t", funcDaBusca->trabalhador.nivel);
+                    printf("| %d\t\t", funcDaBusca->trabalhador.departamento);
+                    printf("| %d\t", funcDaBusca->trabalhador.proximo);
+                    printf("\n");
+                }
+
+                Sleep(10000);
+
                 break;
             default:
                 printf("\nOpcao invalida, selecione uma das opcoes disponiveis!\n");
         }
+        mostrarTabelaFunc(&listaDeFuncionarios);
+        mostrarTabelaDpto(departamentos);
 
-        printf("\nCheguei aqui!!!\n");
-    
-        printf("\n| %s\t", "linha");
-        printf("| %s\t", "numFunc");
-        printf("| %s\t", "nivel");
-        printf("| %s\t", "departamento");
-        printf("| %s\t", "proximo");
-        printf("\n");
-
-        for (Node* p = listaDeFuncionarios.head; p != NULL; p = p->proximo)
-        {
-            printf("| %d\t", p->trabalhador.linha);
-            printf("| %d\t\t", p->trabalhador.numFunc);
-            printf("| %d\t", p->trabalhador.nivel);
-            printf("| %d\t\t", p->trabalhador.departamento);
-            printf("| %d\t", p->trabalhador.proximo);
-            printf("\n");
-        }
-
-        printf("\n| %s\t", "codDepto");
-        printf("| %s\t", "nomeDepto");
-        printf("| %s\t", "inicio");
-        printf("\n");
-        for (int i = 0; departamentos[i].codDepto != -1; i++) {
-            printf("| %d\t", departamentos[i].codDepto);
-            printf("| %s\t\t", departamentos[i].nomeDepto);
-            printf("| %d\t", departamentos[i].inicio);
-            printf("\n");
-        }
     }while (operacao != 0);
     
     printf("\nPROGRAMA ENCERRADO\n\n");
 
     return 0;
+}
+
+void mostrarTabelaFunc(Lista *lista) {
+
+    printf("\n| %s\t", "linha");
+    printf("| %s\t", "numFunc");
+    printf("| %s\t", "nivel");
+    printf("| %s\t", "departamento");
+    printf("| %s\t", "proximo");
+    printf("\n");
+    Sleep(100);
+
+    for (Node* funcAtual = lista->head; funcAtual != NULL; funcAtual = funcAtual->proximo) {
+        printf("| %d\t", funcAtual->trabalhador.linha);
+        printf("| %d\t\t", funcAtual->trabalhador.numFunc);
+        printf("| %d\t", funcAtual->trabalhador.nivel);
+        printf("| %d\t\t", funcAtual->trabalhador.departamento);
+        printf("| %d\t", funcAtual->trabalhador.proximo);
+        printf("\n");
+        Sleep(100);
+    }
+}
+
+void mostrarTabelaDpto(departamento departamentos[]) {
+
+    printf("\n| %s\t", "codDepto");
+    printf("| %s\t", "nomeDepto");
+    printf("| %s\t", "inicio");
+    printf("\n");
+    Sleep(100);
+
+    for (int i = 0; departamentos[i].codDepto != -1; i++) {
+        printf("| %d\t\t", departamentos[i].codDepto);
+        printf("| %s\t", departamentos[i].nomeDepto);
+        printf("| %d\t", departamentos[i].inicio);
+        printf("\n");
+        Sleep(100);
+    }
 }
 
 Node* get(Lista *lista, int iDoFuncionario) {
@@ -248,6 +285,51 @@ Node* adicionaNo(Lista *lista) {
     return node;
 }
 
+Node* acharFuncionarioEspecifico(Lista *lista, int numeroDoFuncionario) {
+    Node* noAuxiliar = lista->head;
+
+    while (noAuxiliar != NULL && noAuxiliar->trabalhador.numFunc != numeroDoFuncionario) {
+        noAuxiliar = noAuxiliar->proximo;
+    }
+
+    return noAuxiliar;
+}
+
+Node* funcionariosDeDepartamento(Lista *lista, int inicioDoDpto) {
+
+    if (inicioDoDpto == -1) {
+        return NULL;
+    }
+
+    Lista funcDpto;
+    funcDpto.head = NULL;
+
+    Node* noDoDpto = get(lista, inicioDoDpto);
+    Node* noAuxiliar = funcDpto.head;
+
+    while (noDoDpto->trabalhador.proximo != -1) {
+        noAuxiliar = adicionaNo(&funcDpto);
+
+        noAuxiliar->trabalhador.linha = noDoDpto->trabalhador.linha;
+        noAuxiliar->trabalhador.numFunc = noDoDpto->trabalhador.numFunc;
+        noAuxiliar->trabalhador.nivel = noDoDpto->trabalhador.nivel;
+        noAuxiliar->trabalhador.departamento = noDoDpto->trabalhador.departamento;
+        noAuxiliar->trabalhador.proximo = noDoDpto->trabalhador.proximo;
+
+        noDoDpto = get(lista, noDoDpto->trabalhador.proximo);
+    }
+
+    noAuxiliar = adicionaNo(&funcDpto);
+
+    noAuxiliar->trabalhador.linha = noDoDpto->trabalhador.linha;
+    noAuxiliar->trabalhador.numFunc = noDoDpto->trabalhador.numFunc;
+    noAuxiliar->trabalhador.nivel = noDoDpto->trabalhador.nivel;
+    noAuxiliar->trabalhador.departamento = noDoDpto->trabalhador.departamento;
+    noAuxiliar->trabalhador.proximo = noDoDpto->trabalhador.proximo;
+
+    return funcDpto.head;
+}
+
 Node* admitir(Lista *lista) {
     Node* novoNode = adicionaNo(lista);
     novoNode->trabalhador.linha = numeroDeFuncionarios;
@@ -257,11 +339,17 @@ Node* admitir(Lista *lista) {
            "\tNumero do funcionario: ");
     scanf("%d", &novoNode->trabalhador.numFunc);
 
-    printf("\nnivel salarial do funcionario: ");
+    printf("\tnivel salarial do funcionario: ");
     scanf("%d", &novoNode->trabalhador.nivel);
 
     printf("\tdepartamento do funcionario: ");
     scanf("%d", &novoNode->trabalhador.departamento);
+
+    while (novoNode->trabalhador.departamento >= MAX_DEPT || novoNode->trabalhador.departamento < 1) {
+        printf("\nNumero de departamento invalido!\n");
+        printf("\tdepartamento do funcionario: ");
+        scanf("%d", &novoNode->trabalhador.departamento);
+    }
 
     printf("Novo funcionario adicionado\n");
 
