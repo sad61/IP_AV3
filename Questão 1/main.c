@@ -137,8 +137,9 @@ int main() {
                            "\tDepartamento = %d\n"
                            "\tProximo no departamento = %d\n"
                            "Segue lista atualizada: \n", novoFuncionario->trabalhador.numFunc,
-                           novoFuncionario->trabalhador.nivel, novoFuncionario->trabalhador.departamento);
-                    Sleep(6500);
+                           novoFuncionario->trabalhador.nivel, novoFuncionario->trabalhador.departamento,
+                           novoFuncionario->trabalhador.proximo);
+                    Sleep(5000);
                 }
                 else
                 {
@@ -201,6 +202,14 @@ int main() {
                 }
 
                 mudarDeDepartamento(&listaDeFuncionarios, funcDaBusca, departamentoAntigo, departamentoNovo, departamentos);
+
+                printf("\nOperacao escolhida = mudar departamento"
+                       "\nFuncionario selecionado = %d"
+                       "\nDepartamento anterior = %d"
+                       "\nDepartamento novo = %d"
+                       "\nSegue Lista atualizada:\n", funcDaBusca->trabalhador.numFunc, 
+                       departamentoAntigo, departamentoNovo);
+                Sleep(5000);
                 break;
             case 4:
                 if (numeroDeFuncionarios != 0) {
