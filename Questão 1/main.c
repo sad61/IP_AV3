@@ -40,6 +40,7 @@ Node* reorganizaDepartamento(Lista *Lista, Node* novoFuncionario, departamento d
 Node* acharFuncionarioEspecifico(Lista *lista, int numeroDoFuncionario);
 Node* get(Lista *lista, int iDoFuncionario);
 Node* funcionariosDeDepartamento(Lista *lista, int inicioDoDpto);
+Node* mudarDeDepartamento(Lista *lista, Node* funcEscolhido, int departamentoAntigo, int departamentoNovo, departamento departamentos[]);
 
 
 int main() {
@@ -91,9 +92,10 @@ int main() {
 
 
     do {
-        int numero, iDoInicio, dptoEscolhido;
+        int numeroDoFunc, iDoInicio, dptoEscolhido;
+        int departamentoAntigo, departamentoNovo;
         Lista listaDoDepartamento;
-        Node* funcDaBusca;
+        Node* funcDaBusca, funcAuxiliar;
         Sleep(500);
         printf("\nSelecione o tipo de operacao desejada:\n"
                "\tdigite '0' para encerrar o programa\n"
@@ -132,12 +134,36 @@ int main() {
                 }
                 break;
             case 3:
-                //mudarDeDepartamento();
+                printf("\nInforme o funcionario de interesse (numFunc do funcionario): ");
+                scanf("%d", &numeroDoFunc);
+
+                funcDaBusca = acharFuncionarioEspecifico(&listaDeFuncionarios, numeroDoFunc);
+
+                if (funcDaBusca == NULL) {
+                    printf("\nFuncionario nao encontrado!");
+                    break;
+                }
+                
+                departamentoAntigo = funcDaBusca->trabalhador.departamento;
+
+                printf("\nO departamento atual eh: %d\n", departamentoAntigo);
+                printf("\nPor favor, informe o novo: ");
+                scanf("%d", &departamentoNovo);
+
+                while (departamentoNovo < 1 || departamentoNovo >= MAX_DEPT) {
+                    printf("\nEscolha um departamento valido!\n");
+                    Sleep(1000);
+                    mostrarTabelaDpto(departamentos);
+                    printf("\nOpcao: ");
+                    scanf("%d", &departamentoNovo);
+                }
+
+                mudarDeDepartamento(&listaDeFuncionarios, funcDaBusca, departamentoAntigo, departamentoNovo, departamentos);
                 break;
             case 4:
                 if (numeroDeFuncionarios != 0) {
 
-                    printf("\nQual departamento de interesse: ");
+                    printf("\nQual departamento de interesse (informe o codDpto): ");
                     scanf("%d", &dptoEscolhido);
 
                     while (dptoEscolhido < 1 || dptoEscolhido >= MAX_DEPT) {
@@ -145,7 +171,7 @@ int main() {
                         Sleep(1000);
                         mostrarTabelaDpto(departamentos);
                         printf("\nOpcao: ");
-                        scanf("%d", &dptoEscolhido, lixo);
+                        scanf("%d", &dptoEscolhido);
                     }
 
                     iDoInicio = departamentos[dptoEscolhido-1].inicio;
@@ -172,12 +198,12 @@ int main() {
                 break;
             case 5:
                 printf("\nPor favor, informe o numero do funcionario que procura: ");
-                scanf("%d", &numero);
+                scanf("%d", &numeroDoFunc);
 
-                funcDaBusca = acharFuncionarioEspecifico(&listaDeFuncionarios, numero);
+                funcDaBusca = acharFuncionarioEspecifico(&listaDeFuncionarios, numeroDoFunc);
 
                 printf("\nOperacao escolhida = consultar funcionario\n"
-                       "numero do funcionario que se busca = %d", numero);
+                       "numero do funcionario que se busca = %d", numeroDoFunc);
 
                 if (funcDaBusca == NULL) {
                     printf("\nFuncionario nao encontrado\n");
@@ -199,7 +225,7 @@ int main() {
                     printf("\n");
                 }
 
-                Sleep(10000);
+                Sleep(5000);
 
                 break;
             default:
@@ -255,6 +281,10 @@ void mostrarTabelaDpto(departamento departamentos[]) {
 
 Node* get(Lista *lista, int iDoFuncionario) {
     Node* funcAtual = lista->head;
+
+    if (iDoFuncionario < 0) {
+        return NULL;
+    }
 
     for (int i = 0; i < iDoFuncionario; i++) {
         funcAtual = funcAtual->proximo;
@@ -368,6 +398,7 @@ Node* reorganizaDepartamento(Lista *lista, Node* novoFuncionario, departamento d
     }
 
     Node* funcAtual = get(lista, iDoFuncionario);
+    Node* proxFunc;
 
     if (funcAtual->trabalhador.numFunc > novoFuncionario->trabalhador.numFunc) {
         departamentos[iDoDepartamento].inicio = novoFuncionario->trabalhador.linha;
@@ -379,7 +410,7 @@ Node* reorganizaDepartamento(Lista *lista, Node* novoFuncionario, departamento d
 
     while (iDoProxfunc != -1) {
         funcAtual = get(lista, iDoFuncionario);
-        Node* proxFunc = get(lista, iDoProxfunc);
+        proxFunc = get(lista, iDoProxfunc);
 
         if (funcAtual->trabalhador.numFunc <= novoFuncionario->trabalhador.numFunc &&
             novoFuncionario->trabalhador.numFunc <= proxFunc->trabalhador.numFunc)
@@ -395,7 +426,41 @@ Node* reorganizaDepartamento(Lista *lista, Node* novoFuncionario, departamento d
         }
     }
 
-    funcAtual->trabalhador.proximo = novoFuncionario->trabalhador.linha;
+    proxFunc->trabalhador.proximo = novoFuncionario->trabalhador.linha;
     novoFuncionario->trabalhador.proximo = -1;
     return novoFuncionario;
+}
+
+Node* mudarDeDepartamento(Lista *lista, Node* funcEscolhido, int departamentoAntigo, int departamentoNovo, departamento departamentos[]) {
+    
+    Lista listaDoDepartamento;
+    listaDoDepartamento.head = funcionariosDeDepartamento(lista, departamentos[departamentoAntigo-1].inicio);
+    Node* noAuxiliar = listaDoDepartamento.head;
+    Node* nodeParaAlterar;
+
+    if (noAuxiliar->trabalhador.numFunc != funcEscolhido->trabalhador.numFunc) {
+        while (noAuxiliar->trabalhador.proximo != funcEscolhido->trabalhador.linha) {
+            noAuxiliar = noAuxiliar->proximo;
+        }
+
+        int indiceDoNoh = noAuxiliar->trabalhador.linha;
+
+        noAuxiliar->trabalhador.proximo = funcEscolhido->trabalhador.proximo;
+
+        nodeParaAlterar = get(lista, noAuxiliar->trabalhador.linha);
+        
+        nodeParaAlterar->trabalhador.proximo = noAuxiliar->trabalhador.proximo;
+    }
+    else
+    {
+        departamentos[departamentoAntigo-1].inicio = funcEscolhido->trabalhador.proximo;
+    }
+
+    funcEscolhido->trabalhador.departamento = departamentoNovo;
+
+    printf("\n%d %d\n", noAuxiliar->trabalhador.departamento, funcEscolhido->trabalhador.departamento);
+
+    reorganizaDepartamento(lista, funcEscolhido, departamentos);
+
+    return funcEscolhido;
 }
