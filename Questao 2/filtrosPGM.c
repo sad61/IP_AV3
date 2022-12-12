@@ -27,8 +27,17 @@ void writeFile(int **matrix, int lines, int cols, int highest, char *fileName);
 int main(int argc, char **argv) // Por simplicidade usarei o .pgm usado como exemplo.
 {
   Pgm pgm;
-  char *fileName = strtok(argv[1], "."); // Removendo o pegando só a parte antes do . do nome do arquivo
-  getInfo(&pgm, fileName);               // Vai pegar as dimensions da matrix e o maior valor.
+
+  // Removendo o pegando só a parte antes do . do nome do arquivo
+  char *fileType;
+  char fileName[50];
+
+  strcpy(fileName, argv[1]);
+  fileType = strstr(fileName, ".pgm");
+
+  *fileType = '\0';
+
+  getInfo(&pgm, fileName);// Vai pegar as dimensions da matrix e o maior valor.
 
   pgm.matrix = (int **)malloc(pgm.lines * sizeof(int *));
   for (int i = 0; i < pgm.lines; i++)
@@ -163,6 +172,15 @@ void brighten(int **matrix, Pgm *pgm, char *fileName)
         bright[i][j] = matrix[i][j] + BRIGHTEN;
       highest = (highest < bright[i][j]) ? bright[i][j] : highest;
     }
+  
+  //Removendo o excesso do nome do arquivo, normalmente o '.acsii'
+  char *fileType = strchr(tempName, '.');
+
+  if (fileType != NULL)
+  {
+     *fileType = '\0';
+  }
+
   writeFile(bright, lines, cols, highest, (char *)strcat(tempName, "1.pgm"));
 }
 
@@ -205,6 +223,15 @@ void zoom(int **matrix, Pgm *pgm, char *fileName)
     else
       starterC += 2;
   } while (starterL < pgm->lines);
+
+  //Removendo o excesso do nome do arquivo, normalmente o '.acsii'
+  char *fileType = strchr(tempName, '.');
+
+  if (fileType != NULL)
+  {
+     *fileType = '\0';
+  }
+
   writeFile(zoomed, lines, cols, highest, (char *)strcat(tempName, "2.pgm"));
 }
 
@@ -245,6 +272,15 @@ void polarize(int **matrix, Pgm *pgm, char *fileName)
       starterC += 2; // Sempre quero começar a scanear dnv 2 colunas a frente da anterior ex:
                      // primeira vez: [0][0]...[1][1], segunda vez: [0][2]...[1][3]
   } while (starterL < lines);
+
+  //Removendo o excesso do nome do arquivo, normalmente o '.acsii'
+  char *fileType = strchr(tempName, '.');
+
+  if (fileType != NULL)
+  {
+     *fileType = '\0';
+  }
+
   writeFile(polarized, lines, cols, highest, (char *)strcat(tempName, "3.pgm"));
 }
 
@@ -264,6 +300,15 @@ void rotate(int **matrix, Pgm *pgm, char *fileName)
   for (i = 0; i < lines; i++)
     for (j = 0; j < cols; j++)
       rotated[j][lines - i - 1] = matrix[i][j];
+  
+  //Removendo o excesso do nome do arquivo, normalmente o '.acsii'
+  char *fileType = strchr(tempName, '.');
+
+  if (fileType != NULL)
+  {
+     *fileType = '\0';
+  }
+  
   writeFile(rotated, cols, lines, highest, (char *)strcat(tempName, "4.pgm"));
 }
 
